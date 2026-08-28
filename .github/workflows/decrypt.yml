@@ -1,0 +1,38 @@
+name: Decrypt NM File
+
+on:
+  workflow_dispatch:      # lets you trigger it manually from the Actions tab
+  push:
+    paths:
+      - '*.NM'             # auto-runs whenever you push/update the .NM file
+
+jobs:
+  decrypt:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Clone decrypt script
+        run: git clone https://github.com/noobconner21/Netmod-Syna-Decrypt-Script.git
+
+      - name: Install dependencies
+        run: pip install pycryptodome
+
+      - name: Copy your .NM file into script folder
+        run: cp *.NM Netmod-Syna-Decrypt-Script/
+
+      - name: Run decrypt script
+        working-directory: Netmod-Syna-Decrypt-Script
+        run: python nm.py
+
+      - name: Upload decrypted output
+        uses: actions/upload-artifact@v4
+        with:
+          name: decrypted-output
+          path: Netmod-Syna-Decrypt-Script/*   # adjust to match whatever output file nm.py actually produces
