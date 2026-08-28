@@ -28,12 +28,38 @@ jobs:
       - name: Copy your .nm file into script folder
         run: |
           shopt -s nocaseglob
-          find . -maxdepth 1 -iname "*.nm" -exec cp {} Netmod-Syna-Decrypt-Script/ \;
+          mkdir -p Netmod-Syna-Decrypt-Script/Download
+          mkdir -p "$HOME/storage/downloads" 2>/dev/null || true
+          for f in *.nm *.NM; do
+            [ -e "$f" ] || continue
+            cp "$f" Netmod-Syna-Decrypt-Script/
+            cp "$f" Netmod-Syna-Decrypt-Script/Download/
+          done
           ls -la Netmod-Syna-Decrypt-Script/
 
       - name: Run decrypt script
         working-directory: Netmod-Syna-Decrypt-Script
         run: python nm.py
+
+      - name: Inspect script for expected path
+        if: failure()
+        working-directory: Netmod-Syna-Decrypt-Script
+        run: |
+          python3 - <<'EOF'
+          import re, marshal, types
+          src = open('nm.py', 'rb').read()
+          m = re.search(rb"loads\((b'.*?')\)\s*$", src, re.S)
+          blob = eval(m.group(1))
+          code = marshal.loads(blob)
+          def walk(c, depth=0):
+              print("  "*depth + f"code: {c.co_name}")
+              for const in c.co_consts:
+                  if isinstance(const, str) and len(const) < 200:
+                      print("  "*(depth+1) + f"str: {const!r}")
+                  if isinstance(const, types.CodeType):
+                      walk(const, depth+1)
+          walk(code)
+          EOF
 
       - name: Upload decrypted output
         uses: actions/upload-artifact@v4
@@ -41,3 +67,4 @@ jobs:
           name: decrypted-output
           path: |
             Netmod-Syna-Decrypt-Script/*.txt
+          retention-days: 1
